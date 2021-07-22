@@ -1,0 +1,185 @@
+---
+
+- name: inetRouter | CONFIGURE InetRouter
+  hosts: inet_routers
+  become: true
+   
+  tasks:
+    - name: inetRouter | SET ip_forward
+      sysctl:
+        name: net.ipv4.ip_forward
+        value: 1
+        sysctl_set: yes
+        state: present
+        reload: yes
+          
+    - name: inetRouter | ENABLE ip_forward
+      lineinfile:
+        dest: /etc/sysctl.conf
+        line: net.ipv4.ip_forward = 1
+          
+    - name: inetRouter | ENABLE NAT
+      iptables:
+        table: nat
+        chain: POSTROUTING
+        destination: "!192.168.0.0/16"
+        out_interface: eth0
+        jump: MASQUERADE
+        
+    - name: inetRouter | RESTART NETWORK
+      systemd:
+        name: network
+        state: restarted
+
+        
+- name: OFFICE ROUTERS | CONFIGURE
+  hosts: office_routers
+  become: true
+  
+  tasks:
+    - name: OFFICE ROUTERS | SET ip_forward
+      sysctl:
+        name: net.ipv4.ip_forward
+        value: 1
+        sysctl_set: yes
+        state: present
+        reload: yes
+    
+    - name: Enable ip_forward
+      lineinfile:
+        dest: /etc/sysctl.conf
+        line: net.ipv4.ip_forward = 1
+        
+    - name: OFFICE ROUTERS | ENABLE NAT
+      iptables:
+        table: nat
+        chain: POSTROUTING
+        destination: "!192.168.0.0/16"
+        out_interface: eth1
+        jump: MASQUERADE 
+        
+    - name: OFFICE ROUTERS | DISABLE ETH0
+      lineinfile:
+        dest: /etc/sysconfig/network-scripts/ifcfg-eth0
+        line: DEFROUTE="no"   
+        
+        
+- name: centralRouter | SET GATEWAY AND ROUTING
+  hosts: centralRouter
+  become: true
+  
+  tasks:
+  
+    - name: centralRouter | SET GATEWAY
+      lineinfile:
+        dest: /etc/sysconfig/network-scripts/ifcfg-eth1
+        line: GATEWAY=192.168.255.1
+        state: present
+       
+    - name: centralRouter | CREATE /etc/sysconfig/network-scripts/route-eth2  
+      file:
+        path: /etc/sysconfig/network-scripts/route-eth2
+        state: touch
+    
+    - name: centralRouter | SET ROUTING FOR ETH2
+      lineinfile:
+        dest: /etc/sysconfig/network-scripts/route-eth2
+        line: 192.168.2.0/26 via 192.168.255.6
+        state: present
+    
+    - name: centralRouter | CREATE /etc/sysconfig/network-scripts/route-eth3  
+      file:
+        path: /etc/sysconfig/network-scripts/route-eth3
+        state: touch
+    
+    - name: centralRouter | SET ROUTING FOR ETH3
+      lineinfile:
+        dest: /etc/sysconfig/network-scripts/route-eth3
+        line: 192.168.1.0/25 via 192.168.255.10
+        state: present
+        
+- name: office1Router | SET GATEWAY 
+  hosts: office1Router
+  become: true
+  
+  tasks:
+    - name: office1Router | SET GATEWAY 
+      lineinfile:
+        dest: /etc/sysconfig/network-scripts/ifcfg-eth1
+        line: GATEWAY=192.168.255.5
+        
+- name: office2Router | SET GATEWAY 
+  hosts: office2Router
+  become: true
+  
+  tasks:
+    - name: office1Router | SET GATEWAY 
+      lineinfile:
+        dest: /etc/sysconfig/network-scripts/ifcfg-eth1
+        line: GATEWAY=192.168.255.9
+        
+        
+- name: OFFICE ROUTERS | RESTART NETWORK
+  hosts: office_routers
+  become: true 
+  
+  tasks:
+    - name: OFFICE ROUTERS | RESTART NETWORK
+      systemd:
+        name: network
+        state: restarted
+        
+        
+- name: OFFICE SERVERS | CONFIGURE
+  hosts: servers
+  become: true
+  
+  tasks:         
+    - name: OFFICE SERVERS | DISABLE ETH0
+      lineinfile:
+        dest: /etc/sysconfig/network-scripts/ifcfg-eth0
+        line: DEFROUTE="no"  
+        
+- name: centralServer | SET GATEWAY
+  hosts: centralServer
+  become: true
+  
+  tasks:
+    - name: centralServer | SET GATEWAY
+      lineinfile:
+        dest: /etc/sysconfig/network-scripts/ifcfg-eth1
+        line: GATEWAY=192.168.0.1
+        
+- name: office1Server | SET GATEWAY
+  hosts: office1Server
+  become: true
+  
+  tasks:
+    - name: office1Server | SET GATEWAY
+      lineinfile:
+        dest: /etc/sysconfig/network-scripts/ifcfg-eth1
+        line: GATEWAY=192.168.2.1  
+        
+        
+- name: office2Server | SET GATEWAY
+  hosts: office2Server
+  become: true
+  
+  tasks:
+    - name: office2Server | SET GATEWAY
+      lineinfile:
+        dest: /etc/sysconfig/network-scripts/ifcfg-eth1
+        line: GATEWAY=192.168.1.1
+        
+
+- name: SERVERS | RESTART NETWORK
+  hosts: servers
+  become: true 
+  
+  tasks:
+    - name: SERVERS | RESTART NETWORK
+      systemd:
+        name: network
+        state: restarted        
+        
+  
